@@ -1,6 +1,6 @@
-# KubeGuard — Offline Kubernetes Security Checks
+# KubeGuard — Live Kubernetes & Offline Manifest Security Checks
 
-**A small, read-only YAML security scanner and educational reference.** KubeGuard checks Kubernetes manifests for common security weaknesses before they are deployed. It never connects to a cluster, uses kubeconfig, or executes container code.
+**A read-only security scanner for offline Kubernetes YAML manifests and live cluster configurations.** KubeGuard applies 20 documented static checks to manifests or current Kubernetes API resource objects using an explicit kubectl context. It never changes a Kubernetes resource or executes container code.
 
 ## What it detects
 
@@ -11,7 +11,7 @@
 - Overly broad Role/ClusterRole permissions and bindings to `cluster-admin`.
 - Namespace manifests without a declared Pod Security Admission enforce policy.
 
-The scanner has **14 intentionally narrow checks**. Its output is static and heuristic: a clean result is **not** a guarantee that a workload or cluster is secure. Some checks (e.g. resource limits, read-only roots, automount) are hardening recommendations, not universal Kubernetes admission requirements.
+The scanner has **20 intentionally narrow checks**. Its output is static and heuristic: a clean result is **not** a guarantee that a workload or cluster is secure. Some checks (e.g. resource limits, read-only roots, automount) are hardening recommendations, not universal Kubernetes admission requirements.
 
 ## Quick start
 
@@ -46,7 +46,7 @@ python -m unittest discover -s tests -v
 
 - KubeGuard uses a strict `SafeLoader` and rejects duplicate mapping keys.
 - Files are capped at 1 MiB each. Static analysis does not interpret Helm templates or Kustomize transformations.
-- No HTTP requests, kubeconfig loading, Kubernetes API access, vulnerability database updates, or workload execution.
+- In offline mode, there are no network requests or kubeconfig access. In `--cluster` mode, a locally installed `kubectl` uses the selected kubeconfig context to perform read-only Kubernetes API `get` requests. Neither mode performs vulnerability database updates or workload execution.
 - The tool does not calculate actual effective RBAC privileges, account for admission-controller mutations, or verify runtime image security.
 - Run it on manifests you are authorized to inspect.
 
