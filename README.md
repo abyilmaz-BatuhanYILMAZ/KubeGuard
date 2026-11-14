@@ -1,6 +1,6 @@
 # KubeGuard — Live Kubernetes & Offline Manifest Security Checks
 
-**A read-only security scanner for offline Kubernetes YAML manifests and live cluster configurations.** KubeGuard applies 20 documented static checks to manifests or current Kubernetes API resource objects using an explicit kubectl context. It never changes a Kubernetes resource or executes container code.
+**A read-only security scanner for offline Kubernetes YAML manifests and live cluster configurations.** KubeGuard applies 24 documented static checks to manifests or current Kubernetes API resource objects using an explicit kubectl context. It never changes a Kubernetes resource or executes container code.
 
 ## What it detects
 
@@ -64,7 +64,7 @@ The independent **KubeSecLab** project provides step-by-step `kind` lessons with
 
 ## Advanced checks
 
-New rules `KG015–KG020` cover high-risk RBAC grants and broad NetworkPolicy peers. Scan the [advanced RBAC](examples/advanced-rbac.yaml) and [network policy](examples/insecure-network-policy.yaml) examples offline. The companion [KubeSecLab](https://github.com/abyilmaz-BatuhanYILMAZ/KubeSecLab) demonstrates live enforcement.
+Rules `KG015–KG020` cover high-risk RBAC grants and broad NetworkPolicy peers. Scan the [advanced RBAC](examples/advanced-rbac.yaml) and [network policy](examples/insecure-network-policy.yaml) examples offline. The companion [KubeSecLab](https://github.com/abyilmaz-BatuhanYILMAZ/KubeSecLab) demonstrates live enforcement.
 
 ## Live cluster audit (read-only)
 
@@ -101,3 +101,29 @@ management workstation.
 
 Validated against a disposable kind Kubernetes API by
 [the live cluster integration workflow](.github/workflows/cluster-integration.yml).
+
+
+## RBAC binding-aware analysis (v0.3)
+
+KubeGuard now resolves **explicit** RoleBinding and ClusterRoleBinding links to
+Role/ClusterRole rules and the named ServiceAccount, User or Group subject. The
+additional rules are:
+
+- KG021 HIGH: a wildcard permission actually bound to a subject.
+- KG022 HIGH: a Secrets-reading permission bound to a subject.
+- KG023 CRITICAL: a permission-delegation verb (bind, escalate, impersonate) bound to a subject.
+- KG024 INFO: binding role reference cannot be resolved in the supplied manifest collection; do not consider its risk known.
+
+This distinguishes an unused dangerous Role from an **assigned** dangerous
+Role, including namespace-scoped RoleBindings referencing a ClusterRole.
+Reports show the binding, subject, scope and source rule.
+
+**Limits:** This is binding-resolved grant analysis, **not** the complete
+effective authorization for a person. Group membership, aggregated
+ClusterRoles when only partial manifests are supplied, external authorizers,
+resourceNames and impersonation chains may change actual permissions.
+Do not treat any clean YAML or cluster report as a penetration test.
+
+The live-cluster GitHub Actions workflow creates a disposable ServiceAccount,
+binds a broad sample Role, then asserts KG021 is reported. No cluster writes
+are issued by the scanner itself.

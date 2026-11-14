@@ -58,3 +58,23 @@ Namespaced RBAC, Cluster RBAC, Namespace objects and NetworkPolicy objects.
   which require human triage.
 - Static results cannot prove NetworkPolicy enforcement or derive the entire
   effective authorization graph.
+
+
+## Binding-aware rules (v0.3)
+
+| ID | Severity | Scope |
+| --- | --- | --- |
+| KG021 | HIGH | RBAC wildcard attached through an explicit RoleBinding or ClusterRoleBinding |
+| KG022 | HIGH | Explicitly bound permission to read/list/watch Secrets |
+| KG023 | CRITICAL | Explicitly bound bind/escalate/impersonate permission |
+| KG024 | INFO | Referenced Role/ClusterRole not supplied; do not infer the binding is safe |
+
+The binding engine links a RoleBinding to a same-namespace Role or to a
+ClusterRole, and links a ClusterRoleBinding to a ClusterRole. It records
+ServiceAccount/namespace and User/Group identities as found in the
+binding. It does not expand user membership in groups and does not produce
+a complete role aggregation or effective-permissions graph.
+
+Cluster-admin bindings already have the direct KG013 rule. Offline YAML
+with an absent built-in cluster-admin definition is not treated as an
+unknown role, because Kubernetes supplies that built-in role.
