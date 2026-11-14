@@ -39,6 +39,10 @@ def binding_findings(records: list[tuple[dict[str, Any], str, int]]) -> list[Fin
             continue
         role_key = (target_kind, ns if target_kind == "Role" else "", target_name)
         role = roles.get(role_key)
+        if role is None and target_kind == "ClusterRole" and target_name == "cluster-admin":
+            # Kubernetes built-in cluster-admin role exists on normal clusters;
+            # the direct binding check KG013 already covers this case.
+            continue
         if role is None:
             # Do not claim the binding is harmless if the role is unavailable.
             _append(findings, "KG024", obj, file_name, doc_num, "roleRef",

@@ -177,7 +177,7 @@ roleRef: {kind: ClusterRole, name: risky, apiGroup: rbac.authorization.k8s.io}
             p = Path(d) / "rbac.yaml"
             p.write_text(manifest)
             r = scan_files([p])
-            self.assertEqual({f.rule_id for f in r.findings}, {"KG015", "KG016", "KG020"})
+            self.assertEqual({f.rule_id for f in r.findings}, {"KG015", "KG016", "KG020", "KG022", "KG023"})
 
 
 if __name__ == "__main__":
