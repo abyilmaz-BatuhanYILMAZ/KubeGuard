@@ -103,7 +103,7 @@ Validated against a disposable kind Kubernetes API by
 [the live cluster integration workflow](.github/workflows/cluster-integration.yml).
 
 
-## RBAC binding-aware analysis (v0.3)
+## RBAC binding-aware analysis (v0.4)
 
 KubeGuard now resolves **explicit** RoleBinding and ClusterRoleBinding links to
 Role/ClusterRole rules and the named ServiceAccount, User or Group subject. The
@@ -119,11 +119,23 @@ Role, including namespace-scoped RoleBindings referencing a ClusterRole.
 Reports show the binding, subject, scope and source rule.
 
 **Limits:** This is binding-resolved grant analysis, **not** the complete
-effective authorization for a person. Group membership, aggregated
-ClusterRoles when only partial manifests are supplied, external authorizers,
-resourceNames and impersonation chains may change actual permissions.
+effective authorization for a person. KubeGuard also resolves declared ClusterRole `aggregationRule.clusterRoleSelectors` using Kubernetes label selectors, including `matchLabels` and supported `matchExpressions`, to link inherited privileges to a bound subject. When scanning live clusters, this complements controller-populated role rules. **Incomplete manifest sets and missing labels can hide grants.** External identity-provider group memberships, admission, token identity, `resourceNames`, impersonation and additional authorizers remain outside its full effective-permission model.
 Do not treat any clean YAML or cluster report as a penetration test.
 
 The live-cluster GitHub Actions workflow creates a disposable ServiceAccount,
 binds a broad sample Role, then asserts KG021 is reported. No cluster writes
 are issued by the scanner itself.
+
+
+## ClusterRole aggregation-aware audit (v0.4)
+
+When a ClusterRole gathers additional rules from other labelled ClusterRoles,
+KubeGuard checks the aggregated grant **and its binding**. The emitted KG021–KG023
+finding includes the original role where the rule came from.
+
+- Static manifest mode: selected ClusterRoles **must be included** in the YAML input.
+- Live mode: the API usually supplies controller-populated effective rules, and KubeGuard also evaluates the selectors in the observed snapshot.
+- Not a replacement for Kubernetes' real authorization engine, group membership, or dynamic cluster/controller behavior.
+
+The GitHub Actions kind integration test applies a synthetic aggregated ClusterRole
+and verifies its Secrets permission is reported through a namespaced RoleBinding.

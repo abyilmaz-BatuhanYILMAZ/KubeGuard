@@ -60,7 +60,7 @@ Namespaced RBAC, Cluster RBAC, Namespace objects and NetworkPolicy objects.
   effective authorization graph.
 
 
-## Binding-aware rules (v0.3)
+## Binding-aware rules (v0.4)
 
 | ID | Severity | Scope |
 | --- | --- | --- |
@@ -72,9 +72,13 @@ Namespaced RBAC, Cluster RBAC, Namespace objects and NetworkPolicy objects.
 The binding engine links a RoleBinding to a same-namespace Role or to a
 ClusterRole, and links a ClusterRoleBinding to a ClusterRole. It records
 ServiceAccount/namespace and User/Group identities as found in the
-binding. It does not expand user membership in groups and does not produce
-a complete role aggregation or effective-permissions graph.
+binding. It expands label-selected aggregated ClusterRole rules from the collected objects; it does not expand external user-to-group membership or produce a complete effective-permissions graph.
 
 Cluster-admin bindings already have the direct KG013 rule. Offline YAML
 with an absent built-in cluster-admin definition is not treated as an
 unknown role, because Kubernetes supplies that built-in role.
+
+Kubernetes aggregation rules are reconciled by the control plane. KubeGuard's
+`aggregationRule.clusterRoleSelectors` matching is an **observed-snapshot
+approximation** with explicit Role/ClusterRoleBindings; it does not prove
+what the Kubernetes authorization API currently permits for any external user.
