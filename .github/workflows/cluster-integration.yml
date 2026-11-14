@@ -34,6 +34,8 @@ jobs:
           kind create cluster --name kubeguard-ci --wait 120s
           kubectl --context kind-kubeguard-ci create namespace kubeguard-ci
           kubectl --context kind-kubeguard-ci -n kubeguard-ci create role broad-example-unbound --verb='*' --resource=configmaps
+          kubectl --context kind-kubeguard-ci -n kubeguard-ci create serviceaccount audit-demo
+          kubectl --context kind-kubeguard-ci -n kubeguard-ci create rolebinding audit-grant --role broad-example-unbound --serviceaccount kubeguard-ci:audit-demo
       - name: Scan the real Kubernetes API and confirm finding
         run: |
           kubeguard scan --cluster --context kind-kubeguard-ci --format json --fail-on NONE > /tmp/live-kubeguard.json
@@ -42,8 +44,10 @@ jobs:
           report=json.load(open('/tmp/live-kubeguard.json',encoding='utf-8'))
           targets=[f for f in report["findings"] if f["rule_id"] == "KG012" and f["resource"] == "Role/kubeguard-ci/broad-example-unbound"]
           assert targets, "Expected live RBAC rule finding missing"
+          bound=[f for f in report["findings"] if f["rule_id"] == "KG021" and f["resource"] == "RoleBinding/kubeguard-ci/audit-grant"]
+          assert bound and "ServiceAccount/kubeguard-ci/audit-demo" in bound[0]["message"], "Binding-resolved live RBAC permission missing"
           assert report["documents_scanned"] > 0, "No Kubernetes resources were inventoried"
-          print("PASS: live cluster inventory detected unbound wildcard Role")
+          print("PASS: live cluster inventory resolved wildcard Role and bound ServiceAccount")
           PY
       - name: Diagnostics if scan failed
         if: failure()
