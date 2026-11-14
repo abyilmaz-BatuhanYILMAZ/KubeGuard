@@ -41,3 +41,20 @@ Authoritative sources: [Pod Security Standards](https://kubernetes.io/docs/conce
 | KG020 | HIGH | Broad built-in RBAC groups or anonymous user subject |
 
 These are **static heuristics**. They do not resolve live cluster authorization, role aggregation, CNI enforcement, or the absence of policies in a namespace. `from: []` / `to: []` are not treated as unrestricted peers.
+
+## Live cluster scope
+
+With `kubeguard scan --cluster --context NAME`, KubeGuard retrieves Kubernetes
+API resource objects using **kubectl get** and applies the same `KG001–KG020`
+rules as it does to YAML. It queries supported namespaced workload resources,
+Namespaced RBAC, Cluster RBAC, Namespace objects and NetworkPolicy objects.
+
+- Access: Kubernetes API read-only `list` on all supported resource kinds,
+  plus network/authentication to that cluster.
+- No write, mutation, external command execution beyond local `kubectl`, or
+  container execution.
+- All supported API kind queries must succeed: incomplete inventory exits 2.
+- Cluster-scoped RBAC objects may reflect normal control-plane permissions
+  which require human triage.
+- Static results cannot prove NetworkPolicy enforcement or derive the entire
+  effective authorization graph.

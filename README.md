@@ -65,3 +65,39 @@ The independent **KubeSecLab** project provides step-by-step `kind` lessons with
 ## Advanced checks
 
 New rules `KG015–KG020` cover high-risk RBAC grants and broad NetworkPolicy peers. Scan the [advanced RBAC](examples/advanced-rbac.yaml) and [network policy](examples/insecure-network-policy.yaml) examples offline. The companion [KubeSecLab](https://github.com/abyilmaz-BatuhanYILMAZ/KubeSecLab) demonstrates live enforcement.
+
+## Live cluster audit (read-only)
+
+**Prerequisite:** kubectl installed and an authorized kubeconfig context with
+`list` permission for all supported resources. The scanner never issues
+`apply`, `patch`, `exec`, `create`, `delete`, or remote shell commands.
+It reads live Kubernetes objects from the API and applies the existing 20
+manifest rules. No workload execution is performed by the scanner.
+
+```bash
+# Explicit context is mandatory to avoid silently auditing the wrong cluster.
+kubeguard scan --cluster --context kind-kubeguard-ci --format json --fail-on NONE > audit.json
+
+# Use a specific kubeconfig file when needed:
+kubeguard scan --cluster --context my-audit-context --kubeconfig ./audit.kubeconfig --format sarif > audit.sarif
+```
+
+The live inventory covers Namespaces, Pods, major workload controllers,
+Roles, RoleBindings, ClusterRoles, ClusterRoleBindings and NetworkPolicies.
+Read access across all namespaces is required for namespaced resources.
+The results report the Kubernetes resource name and the associated rule.
+This is **static evaluation of actual API object configuration**, not packet
+capture, runtime code execution, image CVE scanning or effective RBAC-graph
+calculation. Cluster-scoped built-in controller roles often produce
+informationally noisy hardening findings; review them before acting.
+
+**Fail-closed behavior:** A forbidden, timed-out, oversized or invalid
+response for *any* queried resource kind makes the scan incomplete and returns
+exit status `2`. A partially readable cluster is **not** presented as clean.
+Never provide a production admin kubeconfig to an untrusted scanner host.
+Some kubeconfigs contain `exec` authentication plugins: kubectl may execute
+that configured plugin when authenticating. Run this on an authorized
+management workstation.
+
+Validated against a disposable kind Kubernetes API by
+[the live cluster integration workflow](.github/workflows/cluster-integration.yml).
