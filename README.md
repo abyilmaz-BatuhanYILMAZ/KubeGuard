@@ -11,7 +11,7 @@
 - Overly broad Role/ClusterRole permissions and bindings to `cluster-admin`.
 - Namespace manifests without a declared Pod Security Admission enforce policy.
 
-The scanner has **20 intentionally narrow checks**. Its output is static and heuristic: a clean result is **not** a guarantee that a workload or cluster is secure. Some checks (e.g. resource limits, read-only roots, automount) are hardening recommendations, not universal Kubernetes admission requirements.
+The scanner has **24 intentionally narrow checks**. Its output is static and heuristic: a clean result is **not** a guarantee that a workload or cluster is secure. Some checks (e.g. resource limits, read-only roots, automount) are hardening recommendations, not universal Kubernetes admission requirements.
 
 ## Quick start
 
@@ -71,8 +71,8 @@ Rules `KG015–KG020` cover high-risk RBAC grants and broad NetworkPolicy peers.
 **Prerequisite:** kubectl installed and an authorized kubeconfig context with
 `list` permission for all supported resources. The scanner never issues
 `apply`, `patch`, `exec`, `create`, `delete`, or remote shell commands.
-It reads live Kubernetes objects from the API and applies the existing 20
-manifest rules. No workload execution is performed by the scanner.
+It reads live Kubernetes objects from the API and applies the existing 24
+manifest and binding-analysis rules. No workload execution is performed by the scanner.
 
 ```bash
 # Explicit context is mandatory to avoid silently auditing the wrong cluster.
