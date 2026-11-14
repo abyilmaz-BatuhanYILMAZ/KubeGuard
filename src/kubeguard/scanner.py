@@ -85,6 +85,10 @@ RULES: dict[str, tuple[str, str, str]] = {
     "KG018": ("HIGH", "Open NetworkPolicy egress", "Restrict egress destinations and ports."),
     "KG019": ("MEDIUM", "Wide Internet CIDR", "Review 0.0.0.0/0 or ::/0 destination and any NAT effects."),
     "KG020": ("HIGH", "Broad RBAC binding subject", "Avoid broad system groups or anonymous users as RBAC subjects."),
+    "KG021": ("HIGH", "Bound wildcard RBAC grant", "Minimize wildcard grants and bind only least-privilege scoped identities."),
+    "KG022": ("HIGH", "Bound Secrets-reading grant", "Restrict which identities may read Secrets; audit effective data exposure."),
+    "KG023": ("CRITICAL", "Bound RBAC privilege-delegation grant", "Avoid delegating escalate, bind or impersonate to unnecessary identities."),
+    "KG024": ("INFO", "Unresolved RBAC role reference", "Inventory referenced Role/ClusterRole before declaring bindings low risk."),
 }
 
 
@@ -241,6 +245,7 @@ def scan_files(paths: Iterable[str | Path]) -> ScanResult:
     files = discover(paths)
     findings: list[Finding] = []
     documents = 0
+    records: list[tuple[dict, str, int]] = []
     for file in files:
         if file.stat().st_size > MAX_BYTES:
             raise ManifestError(f"YAML exceeds {MAX_BYTES} bytes: {file}")
@@ -264,8 +269,12 @@ def scan_files(paths: Iterable[str | Path]) -> ScanResult:
                 for child in items:
                     if not isinstance(child, dict) or not isinstance(child.get("kind"), str):
                         raise ManifestError(f"Invalid List child in {file}, document {number}")
+                    records.append((child, str(file), number))
                     findings.extend(scan_resource(child, str(file), number))
             else:
+                records.append((obj, str(file), number))
                 findings.extend(scan_resource(obj, str(file), number))
+    from .rbac_bindings import binding_findings
+    findings.extend(binding_findings(records))
     findings.sort(key=lambda f: (-SEVERITY_ORDER[f.severity], f.file, f.document, f.resource, f.rule_id, f.location))
     return ScanResult(findings, documents, len(files))

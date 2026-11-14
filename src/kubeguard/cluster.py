@@ -58,6 +58,7 @@ def scan_cluster(*, context: str, kubeconfig: str | None = None,
     command += ["--context", context]
 
     findings: list[Finding] = []
+    records: list[tuple[dict, str, int]] = []
     scanned = 0
     errors: list[str] = []
     for resource_type, namespaced in RESOURCE_TYPES:
@@ -99,12 +100,16 @@ def scan_cluster(*, context: str, kubeconfig: str | None = None,
             continue
         for item in items:
             scanned += 1
-            findings.extend(scan_resource(item, f"cluster://{context}/{resource_type}", scanned))
+            source = f"cluster://{context}/{resource_type}"
+            records.append((item, source, scanned))
+            findings.extend(scan_resource(item, source, scanned))
 
     if errors:
         # A principal restricted to part of the cluster cannot assert there
         # are zero findings. Explain which read operations were incomplete.
         raise ManifestError("INCOMPLETE CLUSTER INVENTORY — " + "; ".join(errors)
                             + ". Request read-only list permissions or use offline YAML scanning.")
+    from .rbac_bindings import binding_findings
+    findings.extend(binding_findings(records))
     findings.sort(key=lambda f: (-SEVERITY_ORDER[f.severity], f.file, f.resource, f.rule_id, f.location))
     return ScanResult(findings=findings, documents=scanned, files=0)
