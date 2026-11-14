@@ -99,5 +99,86 @@ spec:
             self.assertIn("KG007", {f.rule_id for f in result.findings})
 
 
+    def test_networkpolicy_wildcards_but_not_default_deny(self):
+        manifest = """apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: allow-everything}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: [{}]
+  egress:
+    - to: [{}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: deny-all}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+"""
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "network.yaml"
+            p.write_text(manifest)
+            r = scan_files([p])
+            self.assertEqual({f.rule_id for f in r.findings}, {"KG017", "KG018"})
+            self.assertTrue(all("deny-all" not in f.resource for f in r.findings))
+
+    def test_internet_cidr_and_scoped_allow(self):
+        manifest = """apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: outside}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: {cidr: 0.0.0.0/0}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: scoped}
+spec:
+  podSelector: {matchLabels: {app: web}}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {matchLabels: {client: approved}}
+      ports: [{protocol: TCP, port: 8080}]
+"""
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "network.yaml"
+            p.write_text(manifest)
+            r = scan_files([p])
+            self.assertEqual([f.rule_id for f in r.findings], ["KG019"])
+
+    def test_rbac_risky_verbs_secrets_and_broad_subject(self):
+        manifest = """apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: risky}
+rules:
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles]
+    verbs: [bind, escalate]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: everyone}
+subjects:
+  - kind: Group
+    name: system:authenticated
+    apiGroup: rbac.authorization.k8s.io
+roleRef: {kind: ClusterRole, name: risky, apiGroup: rbac.authorization.k8s.io}
+"""
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "rbac.yaml"
+            p.write_text(manifest)
+            r = scan_files([p])
+            self.assertEqual({f.rule_id for f in r.findings}, {"KG015", "KG016", "KG020"})
+
+
 if __name__ == "__main__":
     unittest.main()

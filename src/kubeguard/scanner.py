@@ -79,6 +79,12 @@ RULES: dict[str, tuple[str, str, str]] = {
     "KG012": ("HIGH", "Wildcard RBAC permission", "Specify only the apiGroups, resources and verbs the role actually needs."),
     "KG013": ("CRITICAL", "cluster-admin role binding", "Avoid binding cluster-admin; grant a limited, scoped Role wherever possible."),
     "KG014": ("MEDIUM", "Namespace not enforcing Pod Security", "Label the namespace pod-security.kubernetes.io/enforce with a suitable policy such as restricted."),
+    "KG015": ("HIGH", "Risky RBAC privilege verb", "Review and minimize escalate, bind, impersonate grants."),
+    "KG016": ("MEDIUM", "Permission to read Kubernetes Secrets", "Review get/list/watch access to Secrets; scope when possible."),
+    "KG017": ("HIGH", "Open NetworkPolicy ingress", "Restrict ingress sources with pod/namespace selectors."),
+    "KG018": ("HIGH", "Open NetworkPolicy egress", "Restrict egress destinations and ports."),
+    "KG019": ("MEDIUM", "Wide Internet CIDR", "Review 0.0.0.0/0 or ::/0 destination and any NAT effects."),
+    "KG020": ("HIGH", "Broad RBAC binding subject", "Avoid broad system groups or anonymous users as RBAC subjects."),
 }
 
 
@@ -169,12 +175,46 @@ def scan_resource(obj: dict, file_name: str, doc_num: int) -> list[Finding]:
     if kind in ("Role", "ClusterRole"):
         for idx, rule in enumerate(sequence(obj.get("rules"))):
             rule = mapping(rule)
+            verbs = set(str(v) for v in sequence(rule.get("verbs")))
+            resources = set(str(v) for v in sequence(rule.get("resources")))
             if any("*" in sequence(rule.get(f)) for f in ("verbs", "resources", "apiGroups", "nonResourceURLs")):
                 add("KG012", f"rules[{idx}]")
+            if verbs & {"escalate", "bind", "impersonate"}:
+                add("KG015", f"rules[{idx}].verbs")
+            if "secrets" in resources and verbs & {"get", "list", "watch"}:
+                add("KG016", f"rules[{idx}].resources")
     if kind in ("ClusterRoleBinding", "RoleBinding"):
         ref = mapping(obj.get("roleRef"))
         if ref.get("kind") == "ClusterRole" and ref.get("name") == "cluster-admin":
             add("KG013", "roleRef")
+        broad = {"system:authenticated", "system:unauthenticated", "system:serviceaccounts"}
+        for idx, subject in enumerate(sequence(obj.get("subjects"))):
+            subject = mapping(subject)
+            if ((subject.get("kind") == "Group" and subject.get("name") in broad) or
+                (subject.get("kind") == "User" and subject.get("name") == "system:anonymous")):
+                add("KG020", f"subjects[{idx}]")
+    if kind == "NetworkPolicy":
+        spec = mapping(obj.get("spec"))
+        types = set(str(v) for v in sequence(spec.get("policyTypes")))
+        if not types:
+            types = {"Ingress"}
+            if "egress" in spec:
+                types.add("Egress")
+        for direction, rule_id, field in (("Ingress", "KG017", "from"), ("Egress", "KG018", "to")):
+            if direction not in types:
+                continue
+            for idx, item in enumerate(sequence(spec.get(direction.lower()))):
+                rule = mapping(item)
+                peers = sequence(rule.get(field))
+                # Omitted peer key or an empty peer object means unrestricted.
+                # An empty peer ARRAY does not, and is not flagged here.
+                if field not in rule or any(isinstance(peer, dict) and not peer for peer in peers):
+                    add(rule_id, f"spec.{direction.lower()}[{idx}].{field}")
+                if direction == "Egress":
+                    for pidx, peer in enumerate(peers):
+                        cidr = mapping(mapping(peer).get("ipBlock")).get("cidr")
+                        if cidr in ("0.0.0.0/0", "::/0"):
+                            add("KG019", f"spec.egress[{idx}].to[{pidx}].ipBlock.cidr")
     if kind == "Namespace":
         labels = mapping(mapping(obj.get("metadata")).get("labels"))
         if labels.get("pod-security.kubernetes.io/enforce") not in ("restricted", "baseline"):

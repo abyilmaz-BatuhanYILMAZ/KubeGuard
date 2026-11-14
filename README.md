@@ -61,3 +61,7 @@ The independent **KubeSecLab** project provides step-by-step `kind` lessons with
 - [RBAC Good Practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
 
 **License:** MIT. This project is for education and defensive configuration review, not a CIS benchmark or Kubernetes certification.
+
+## Advanced checks
+
+New rules `KG015–KG020` cover high-risk RBAC grants and broad NetworkPolicy peers. Scan the [advanced RBAC](examples/advanced-rbac.yaml) and [network policy](examples/insecure-network-policy.yaml) examples offline. The companion [KubeSecLab](https://github.com/abyilmaz-BatuhanYILMAZ/KubeSecLab) demonstrates live enforcement.

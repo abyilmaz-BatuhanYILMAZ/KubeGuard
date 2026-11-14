@@ -28,3 +28,16 @@ These checks are an **educational subset** of Kubernetes Pod Security Standards 
 - A manifest may pass these checks while still being vulnerable. Pair with admission enforcement, image analysis, runtime monitoring and authorization review.
 
 Authoritative sources: [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/), [RBAC Good Practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/).
+
+## Advanced RBAC and NetworkPolicy checks
+
+| Rule | Severity | Checks |
+| --- | --- | --- |
+| KG015 | HIGH | `escalate`, `bind` and `impersonate` RBAC verbs |
+| KG016 | MEDIUM | `get/list/watch` permissions on Secrets |
+| KG017 | HIGH | NetworkPolicy ingress rule open to all sources |
+| KG018 | HIGH | NetworkPolicy egress rule open to all destinations |
+| KG019 | MEDIUM | Wide Internet ipBlock `0.0.0.0/0` / `::/0` |
+| KG020 | HIGH | Broad built-in RBAC groups or anonymous user subject |
+
+These are **static heuristics**. They do not resolve live cluster authorization, role aggregation, CNI enforcement, or the absence of policies in a namespace. `from: []` / `to: []` are not treated as unrestricted peers.
